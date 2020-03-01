@@ -1,0 +1,185 @@
+<title> CS140 -- Lab 3</title>
+
+<h1> CS140 -- Lab 3</h1>
+<h3>
+<UL> <LI> CS140 -- Data Structures
+<LI> Fall, 2019
+<LI> <a href=http://web.eecs.utk.edu/~jplank>James S. Plank</a>
+<LI> <a href=http://web.eecs.utk.edu/~jplank/plank/classes/cs140/Labs/Lab3>
+     <b>http://web.eecs.utk.edu/~jplank/plank/classes/cs140/Labs/Lab3</b></a>
+<LI> Lab Directory: <b>/home/plank/cs140/Labs/Lab3</b>
+</UL>
+</h3>
+
+Back to PGM files.  
+<p>
+The structure of this lab is like the structure of 
+<a href=http://web.eecs.utk.edu/~jplank/plank/classes/cs140/Notes/Classes/index.html>the
+lecture notes on Classes, Header/Source/Object/Executable Files</a>.
+What I want you to do is the following, in the directory in which you are working:
+
+<pre>
+UNIX> <font color=darkred><b>cp -r /home/jplank/cs140/Labs/Lab3/src .</b></font>
+UNIX> <font color=darkred><b>cp -r /home/jplank/cs140/Labs/Lab3/include .</b></font>
+UNIX> <font color=darkred><b>cp -r /home/jplank/cs140/Labs/Lab3/pgm .</b></font>
+UNIX> <font color=darkred><b>cp /home/jplank/cs140/Labs/Lab3/makefile .</b></font>
+UNIX> <font color=darkred><b>mkdir obj</b></font>
+UNIX> <font color=darkred><b>mkdir bin</b></font>
+</pre>
+
+You will now have five directories: <b>include</b>, 
+<b>src</b>, 
+<b>obj</b> <b>bin</b> and <b>pgm</b>.  The first four mirror the lecture notes, and the
+last has pgm files that you can use for testing.  In
+<b><a href=include/pgm.hpp>include/pgm.hpp</a></b>, there is a definition of a PGM 
+class.  The description of the class is in the include file, so go ahead and read it:
+
+<p><center><table border=3 cellpadding=3><td><pre>
+<font color=blue>/* Header file to define the PGM class, that lets you manipulate PGM files.
+/* Header file to define the PGM class, that lets you manipulate PGM files.
+   The files themselves are simply stored in a vector of vectors of ints.
+   All of the methods return true if they succeed and false if they fail.
+
+   Write() needs to produce files in a specific format:
+
+      - P2 on its own line, no spaces.
+      - cols rows on the next line, separated by a space, no additional spaces
+      - 255 on its own line, no spaces.
+      - Then the pixels: 20 pixels per line, one space between pixels, no additional spaces.
+      - You don't print additional newlines at the end of each row of pixels -- just 
+        start the next row of pixels.
+      - The last line is the only one that can have fewer than 20 pixels.
+      - To give an example, if the picture has two rows and 11 columns, and all of the
+        pixels have values of 5, then the pixels will look like:
+
+5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5 5
+5 5
+ */</font>
+
+#pragma once
+
+#include &lt;vector&gt;
+
+class Pgm {
+  public:
+    bool Read(const std::string &file);           <font color=blue>// Reads a PGM file </font>
+    bool Write(const std::string &file) const;    <font color=blue>// Writes a PGM file</font>
+    bool Create(size_t r, size_t c, size_t pv);   <font color=blue>// Creates a rxc PGM with the given pixel value</font>
+    bool Clockwise();                             <font color=blue>// Rotates 90 degrees clockwise</font>
+    bool Cclockwise();                            <font color=blue>// Rotates 90 degrees counterclockwise</font>
+    bool Pad(size_t w, size_t pv);                <font color=blue>// Adds a border of w pixels with the given value</font>
+    bool Panel(size_t r, size_t c);               <font color=blue>// Makes rxc copies of the PGM</font>
+    bool Crop(size_t r,    size_t c,
+              size_t rows, size_t cols);         <font color=blue>// Crops from r:c to (r+rows):(c+cols)</font>
+  protected:
+    std::vector &lt; std::vector &lt;int&gt; &gt; Pixels;
+};
+</pre></td></table></center><p>
+
+This is all straightforward.  Your job in this lab is to implement all of the methods,
+with the exception of <b>Read()</b>, which is already written for you in <b>src/pgm.cpp</b>.
+Pay attention to the format of <b>Write()</b>, which is specified in the opening comments
+at the beginning of the file.
+<p>
+As in the Tic-Tac-Toe lecture, there is a separate testing program, in 
+<b><a href=src/pgm_tester.cpp>src/pgm_tester.cpp</a></b>.  I'm not going to include it
+here because it is so straightforward.  The testing program allows you to test each method:
+
+<pre>
+UNIX> <font color=darkred><b>echo '?' | bin/pgm_tester </b></font>
+usage: pgm_editor [prompt] - commands on standard input
+
+        READ filename             - Read the PGM file
+        WRITE filename            - Write the stored PGM to the file
+        CREATE rows cols pixvalue - Call Create()
+        CW                        - Call Clockwise()
+        CCW                       - Call Cclockwise()
+        PAD pixels pixvalue       - Call Pad()
+        PANEL r c                 - Call Panel()
+        CROP r c rows cols        - Call Crop()
+        Q                         - Quit
+        ?                         - Print commands
+UNIX> <font color=darkred><b></b></font>
+</pre>
+
+The <b>makefile</b> allows you to compile everything, putting object files in the <b>obj</b>
+directory, and putting the binary in <b>bin/pgm_tester</b>.  Let me give you some examples.
+Under each example, I have the picture that is created:
+
+<pre>
+UNIX> <font color=darkred><b>bin/pgm_tester 'PGM>'</b></font>
+PGM> <font color=darkred><b>CREATE 50 200 0</b></font>
+PGM> <font color=darkred><b>WRITE pgm/example_create.pgm</b></font>
+PGM> <font color=darkred><b></b></font>
+<img src=jpg/example_create.jpg>
+PGM> <font color=darkred><b></b></font>
+PGM> <font color=darkred><b>READ pgm/Red.pgm   </b></font>
+PGM> <font color=darkred><b>CW   </b></font>
+PGM> <font color=darkred><b>WRITE pgm/example_cw.pgm      </b></font>
+PGM> <font color=darkred><b></b></font>
+<img src=jpg/example_cw.jpg>
+PGM> <font color=darkred><b></b></font>
+PGM> <font color=darkred><b>READ pgm/Red.pgm</b></font>
+PGM> <font color=darkred><b>CCW</b></font>
+PGM> <font color=darkred><b>WRITE pgm/example_ccw.pgm</b></font>
+PGM> <font color=darkred><b></b></font>
+<img src=jpg/example_ccw.jpg>
+PGM> <font color=darkred><b></b></font>
+PGM> <font color=darkred><b>READ pgm/Rodney.pgm</b></font>
+PGM> <font color=darkred><b>PAD 30 0 </b></font>
+PGM> <font color=darkred><b>WRITE pgm/example_pad_1.pgm</b></font>
+PGM> <font color=darkred><b></b></font>
+<img src=jpg/example_pad_1.jpg>
+PGM> <font color=darkred><b></b></font>
+PGM> <font color=darkred><b>PAD 30 255</b></font>
+PGM> <font color=darkred><b>PAD 1 0</b></font>
+PGM> <font color=darkred><b>WRITE pgm/example_pad_2.pgm</b></font>
+PGM> <font color=darkred><b></b></font>
+<img src=jpg/example_pad_2.jpg>
+PGM> <font color=darkred><b></b></font>
+PGM> <font color=darkred><b>READ pgm/Red.pgm</b></font>
+PGM> <font color=darkred><b>PANEL 2 4</b></font>
+PGM> <font color=darkred><b>WRITE pgm/example_panel_1.pgm</b></font>
+PGM> <font color=darkred><b></b></font>
+<img src=jpg/example_panel_1.jpg>
+PGM> <font color=darkred><b></b></font>
+PGM> <font color=darkred><b>READ pgm/Rodney.pgm</b></font>
+PGM> <font color=darkred><b>PAD 6 0</b></font>
+PGM> <font color=darkred><b>PAD 3 255</b></font>
+PGM> <font color=darkred><b>PANEL 3 5</b></font>
+PGM> <font color=darkred><b>WRITE pgm/example_panel_2.pgm</b></font>
+PGM> <font color=darkred><b></b></font>
+<img src=jpg/example_panel_2.jpg>
+PGM> <font color=darkred><b></b></font>
+PGM> <font color=darkred><b>READ pgm/Red.pgm</b></font>
+PGM> <font color=darkred><b>CROP 45 60 50 100</b></font>
+PGM> <font color=darkred><b>WRITE pgm/example_crop.pgm</b></font>
+PGM> <font color=darkred><b></b></font>
+<img src=jpg/example_crop.jpg>
+PGM> <font color=darkred><b></b></font>
+PGM> <font color=darkred><b>READ pgm/Red.pgm</b></font>
+PGM> <font color=darkred><b>CROP 45 60 50 100</b></font>
+PGM> <font color=darkred><b>PAD 2 0</b></font>
+PGM> <font color=darkred><b>PAD 1 255</b></font>
+PGM> <font color=darkred><b>PANEL 4 9</b></font>
+PGM> <font color=darkred><b>WRITE pgm/example_crop_panel.pgm</b></font>
+PGM> <font color=darkred><b></b></font>
+<img src=jpg/example_crop_panel.jpg>
+PGM> <font color=darkred><b></b></font>
+PGM> <font color=darkred><b>Q</b></font>
+UNIX> 
+</pre>
+
+<h3>Grading and Starting</h3>
+
+To start this lab -- <i><b>and do this during lab</b></i>, write dummy versions of the
+methods that don't work, but that compile when you type <b>make</b>.  
+That way can compile to <b>bin/pgm_tester</b>, and you can start writing code and testing.
+I would do <b>Write()</b> first, and then do the rest in whatever order you want.
+<p>
+The gradescript assumes that you program is in <b>bin/pgm_tester</b>
+<p>
+The only think you should submit is <b>src/pgm.cpp</b>.
+<p>
+BTW, in 2019, the TA's Kody Bloodworth and ChaoHui Zheng wrote up some supplementary 
+information.  I have linked it <a href=TA-Supplement.pdf>here, in the file Supplement.pdf</a>.

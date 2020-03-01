@@ -1,0 +1,12 @@
+newgraph
+xaxis min 1 max 2.04 hash .1 mhash 0 size 4 label fontsize 14 : Load Factor
+  hash_labels fontsize 12
+yaxis min 100 max 10000 log size 2 label fontsize 15 : Probes
+  hash_labels fontsize 12
+legend defaults fontsize 14 hjl vjt x 1.7 y 10000
+
+newline color .5 0 0 linetype solid label : Linear Probing
+   pts shell : sh scripts/evaluate.sh | grep Linear | awk '{ print $2/417.0, $3 }'
+
+newline color 0 0 .5 linetype longdash label : Double Hashing
+   pts shell : sh scripts/evaluate.sh | grep Double | awk '{ print $2/417.0, $3 }'

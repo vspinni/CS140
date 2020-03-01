@@ -1,0 +1,429 @@
+<title> CS140 -- Lab 6</title>
+
+<h1> CS140 -- Lab 6</h1>
+<h3>
+<UL> <LI> CS140 -- Fundamental Algorithms
+<LI> Fall, 2019
+<LI> <a href=http://web.eecs.utk.edu/~jplank>James S. Plank</a>
+<LI> <a href=http://web.eecs.utk.edu/~jplank/plank/classes/cs140/Labs/Lab6/index.html>This file:
+     <b>http://web.eecs.utk.edu/~jplank/plank/classes/cs140/Labs/Lab6</b></a>
+<LI> Lab Directory: <b>/home/jplank/cs140/Labs/Lab6</b>
+</UL>
+</h3>
+
+<h3>To start this lab</h3>
+
+Do the following:
+
+<pre>
+UNIX> <font color=darkred><b>cp -r /home/jplank/cs140/Labs/Lab6/src .</b></font>
+UNIX> <font color=darkred><b>cp -r /home/jplank/cs140/Labs/Lab6/include .</b></font>
+UNIX> <font color=darkred><b>cp /home/jplank/cs140/Labs/Lab6/makefile .</b></font>
+UNIX> <font color=darkred><b>mkdir obj</b></font>
+UNIX> <font color=darkred><b>mkdir bin</b></font>
+</pre>
+
+Your job will be to write two programs: <b>src/fraction.cpp</b>, which implements the
+Fraction class, and <b>src/keno.cpp</b>, which is described below.
+
+<hr>
+<h3>The story</h3>
+
+You are in Vegas with your wife and her family.  On morning number 1, they all
+want to go to the "Venetian" hotel and casino to ride the Gondolas.  You have
+the choice of going or staying.  Hmmm, let's see.  You've already overpaid once
+in your life to ride a real gondola in Venice.  It's something like 500 bazillion
+degrees in Vegas, and the gondola rides are in a big concrete 
+swimming pool.  You thank the family, but send them on their merry way.
+<p>
+You wander around the casino, and see this game called <i>Keno</i>.  It's a
+bit like a lottery.  There are 80 balls numbered 1 through 80, and they will
+pick 20 of them randomly.  They have a catchy little flier about all the 
+Keno bets you can make:
+<p>
+<table border=3>
+<td valign=top> <IMG src=jpg/K1.jpg width=350></td>
+<td valign=top> <IMG src=jpg/K2.jpg width=200><br>
+                <IMG src=jpg/K3.jpg width=200></td>
+<td valign=top> <IMG src=jpg/K4.jpg width=200></td>
+</table>
+<p>
+The whole flier is <a href=jpg/Keno.jpg>here</a>.
+<p>
+Now, we're talking entertainment!  You know there's no way that these
+tempting little bets are going to make you money in the long run, but
+have a little mathematical problem to solve, and that's better
+than gambling!
+Your job is to figure out which of these bets is the best -- in other words,
+which one will lose you the least amount of money in the long run.
+<p>
+Let's analyze the bet sheet.  On the "2-Bit Menu" you will pay a quarter per
+game, which you will not get back.  Let's say you choose the "5 catch win."  This
+means that you will pick five numbers.  They will pick 20.  If exactly three
+of your five numbers are in their twenty, they pay you a quarter (i.e. you
+get your money back).  If exactly four of your five are in their twenty, 
+then they pay you a dollar.  And if all five are your numbers are in their
+twenty, you win $200!!!!!  Whoo-hoo!!!
+<p>
+So, suppose you want to calculate what the average return on your investment 
+will be.  The probability of matching exactly three balls is 0.0839351.  
+The probability of matching exactly four balls is 0.0120923.
+And the probability of matching exactly five is 0.000644925.
+I'll show you how to calculate those later.  So, to calculate your return:
+<p>
+<UL>
+<LI> You always lose your initial 0.25
+<LI> 8.39351 percent of the time, you win back 0.25.  
+<LI> 1.20923 percent of the time, you win back a dollar
+<LI> 0.0644925 percent of the time, you win $200.
+<LI> Therefore, your return is -0.25 + 0.0839351 * (0.25) + 0.0120923 * (1) 
++ 0.000644925 * (200).  That is -0.087939, so you lose roughly nine cents 
+on every 25 cent bet.
+<LI> If you care to normalize that to the dollar, you normalized return is 
+-0.087939/.25 = -0.35 per bet.  That's one lousy bet.  At least it only 
+costs a quarter (although the fine print says you have to play 21 times....)
+</UL>
+
+<hr>
+Onto the lab.  In mathematics, a binomial coefficient <i>binom(n,k)</i> is
+defined to equal (n!)/((k!)(n-k)!).  It represents the number of ways to choose
+<i>k</i> distinct items from a collection of <i>n</i>.  Therefore, the total
+number of ways that you can choose 20 balls from 80 is  <i>binom(80,20) = (80!)/(20!60!)</i>.
+<p>
+In Keno, suppose you pick <i>p</i> balls.  Then the number of ways to match
+exactly <i>c</i> of those <i>p</i> in the twenty randomly chosen balls is:
+<p>
+<center>
+<i>binom(80-p,20-c) * binom(p,c)</i>
+</center>
+<p>
+So, the probability of you matching exactly exactly <i>c</i> of <i>p</i> is:
+<p>
+<center>
+<i>binom(80-p,20-c) * binom(p,c) / binom(80,20)</i>
+</center>
+<p>
+
+Let's take a concrete example.  If we choose five balls and want to match exactly
+three, that's: <i>binom(75,17) * binom(5,3) / binom(80,20)</i>.  Which equals:
+<p>
+<center><img src=jpg/binom1.jpg height=50></center><p>
+Fortunately, we can cancel quite a few of these terms.  For example, 
+(75!)/(80!) = 1/(80*79*78*77*76).  And 
+(5!)/(3!) = 5*4.  
+We can keep cancelling until we get:
+<p><center><img src=jpg/binom2.jpg height=50></center><p>
+This equals 0.0839351. 
+<p>
+(For the true nerds, yes, we can do a prime factorization and cancel many more terms,
+but for the purposes of this lab, we'll just do simple cancellations).
+<p>
+<hr>
+<h3>Your Job: #1: fraction.cpp</h3>
+
+You are to write two programs: <b>src/fraction.cpp</b> and <b>src/keno.cpp</b>.
+<p>
+The first implements a class called a "fraction", defined
+in
+<b><a href=include/fraction.hpp>include/fraction.hpp</a></b>.
+Please read the comments in the header
+file for description:
+
+<p><center><table border=3 cellpadding=3><td><pre>
+#pragma once
+#include &lt;set&gt;
+
+<font color=blue>/* The Fraction class manages a fraction, where the numerator and the denominator
+   are both products of positive integers.  Internally, you will represent the fraction
+   as two multisets -- one for the numerator and one for the denominator.  You want to
+   make sure that the same number does not appear in both the numerator and denominator.
+   When that happens, you should delete the number from both the numerator and the
+   denominator.
+
+   You manipulate the product with the first eight methods.  Print() prints the
+   fraction and Calculate() calculates the fraction as a double. See the method
+   descriptions for more information. 
+
+   For the methods that return a bool, return true when the operation is successful,
+   and false if the parameters are bad. */</font>
+
+class Fraction {
+  public:
+    void Clear();                       <font color=blue>// Clear both the numerator and denominator</font>
+
+    bool Multiply_Number(int n);        <font color=blue>// Add a number to the numerator</font>
+    bool Divide_Number(int n);          <font color=blue>// Add a number to the denominator</font>
+
+    bool Multiply_Factorial(int n);     <font color=blue>// Add the numbers 2 through n to the numerator</font>
+    bool Divide_Factorial(int n);       <font color=blue>// Add the numbers 2 through n to the denominator</font>
+
+    bool Multiply_Binom(int n, int k);  <font color=blue>// Effect multiplying by n-choose-k</font>
+    bool Divide_Binom(int n, int k);    <font color=blue>// Effect dividing by n-choose-k</font>
+
+    void Invert();                      <font color=blue>// Swap the numerator and denominator</font>
+
+    void Print() const;                 <font color=blue>// Print the equation for the fraction (see the lab writeup)</font>
+
+    double Calculate_Product() const;   <font color=blue>// Calculate the product as a double.</font>
+
+  protected:
+    std::multiset &lt;int&gt; numerator;
+    std::multiset &lt;int&gt; denominator;
+};
+</pre></td></table></center><p>
+
+In the various calls, <b>n</b> must be a positive integer, and <b>k</b> must be
+greater than or equal to zero (anything choose 0 is equal to one).  If any of these
+are bad, the various calls should return <b>false</b>.
+<p>
+The only subtle method is <b>Print()</b>.  The way this works is to
+print the numerator as a bunch of products, and then the denominator 
+as a bunch of quotients.  See below for examples.
+<p>
+
+To help you test, I have a program called
+<b><a href=fraction_tester.cpp>fraction_tester.cpp</a></b>, where you can 
+enter commands on standard input to manipulate a fraction and test these methods.
+You call it with an optional prompt:
+
+<pre>
+UNIX> <font color=darkred><b>bin/fraction_tester 'FT>'</b></font>
+FT> <font color=darkred><b>?</b></font>
+QUIT           -- Quit the program.
+?              -- Print commands.
+CLEAR          -- Clear the fraction back to one.
+CALCULATE      -- Calculate the fraction.
+INVERT         -- Swap the numerator and denominator.
+PRINT          -- Print the fraction as an equation.
+MULTIPLY n     -- Multiply the fraction by n.
+DIVIDE n       -- Divide the fraction by n.
+MULT_FACT n    -- Multiply the fraction by n!
+DIV_FACT n     -- Divide the fraction by n!
+MULT_BINOM n k -- Multiply the fraction by n choose k.
+DIV_BINOM n k  -- Divide the fraction by n choose k.
+FT> <font color=darkred><b>PRINT</b></font>
+1
+FT> <font color=darkred><b>MULTIPLY 5</b></font>
+FT> <font color=darkred><b>MULTIPLY 10</b></font>
+FT> <font color=darkred><b>PRINT</b></font>
+5 * 10
+FT> <font color=darkred><b>CALCULATE</b></font>
+50
+FT> <font color=darkred><b>DIVIDE 5</b></font>  <font color=blue> # Dividing by 5 removes 5 from the numerator.</font>
+FT> <font color=darkred><b>PRINT</b></font>
+10
+FT> <font color=darkred><b>DIVIDE 5</b></font>  <font color=blue> # Dividing by 5 here adds 5 to the denominator.</font>
+FT> <font color=darkred><b>PRINT</b></font>     <font color=blue> # You only "cancel" numbers; you don't worry about factors</font>
+10 / 5
+FT> <font color=darkred><b>MULT_FACT 6</b></font>
+FT> <font color=darkred><b>PRINT</b></font>
+2 * 3 * 4 * 6 * 10
+FT> <font color=darkred><b>DIV_FACT 7</b></font>
+FT> <font color=darkred><b>PRINT</b></font>
+10 / 5 / 7
+FT> <font color=darkred><b>CALCULATE</b></font>
+0.285714
+FT> <font color=darkred><b>CLEAR      </b></font>
+FT> <font color=darkred><b>MULT_BINOM 10 5</b></font>
+FT> <font color=darkred><b>PRINT</b></font>
+6 * 7 * 8 * 9 * 10 / 2 / 3 / 4 / 5
+FT> <font color=darkred><b>CLEAR</b></font>
+FT> <font color=darkred><b>DIV_BINOM 10 5</b></font>
+FT> <font color=darkred><b>PRINT</b></font>
+2 * 3 * 4 * 5 / 6 / 7 / 8 / 9 / 10
+FT> <font color=darkred><b>CALCULATE</b></font>
+0.00396825
+FT> <font color=darkred><b>QUIT </b></font>
+UNIX> <font color=darkred><b></b></font>
+</pre>
+
+
+When you compile your <b>src/fraction.cpp</b> with 
+<b><a href=src/fraction_tester.cpp>src/fraction_tester.cpp</a></b> (which is done
+in the <b>makefile</b>), your output should match mine
+<i>exactly</i>.  Many of the grading script's tests will use <b>fraction_tester</b> 
+to test your program.  
+
+<hr>
+<h3>Your Job: #2: keno.cpp</h3>
+
+Now that you've written <b>src/fraction.cpp</b>, use it to write <b>src/keno.cpp</b>,
+which calculates Keno odds using the formula above.  <b>Keno.cpp</b> should
+read numbers on standard input using <b>cin</b>.  The first number will be the amount to bet, 
+and the second should be the number of balls that you are going to pick.
+After that, there will be pairs of numbers that compose the winning table.
+These will be in the order <i>catch, payout</i>, where <b>catch</b> is the
+exact number of balls to match, and <b>payout</b> is the payout of that 
+number of balls.  You do not need to error check.
+<p>
+So, for example, the "5 catch win" above would be represented with:
+<pre>
+0.25 5    3 0.25   4 1   5 200
+</pre>
+
+Now the first line of your program should print out the bet, and the second
+line should print the balls picked.  The bet should be padded to two
+decimal places (use <b>printf</b> instead of <b>cout</b>).  Then for each 
+payout, you should print the probability of winning and the expected 
+return (probability times payout).  Use <b>cout</b> for these lines
+and have them match mine exactly.  Finally, you should print the 
+expected return per bet, which is the sum of all expected returns minus
+the bet.  Have this padded to two decimal places (use <b>printf</b> instead of <b>cout</b>).  
+Finally, print the normalized return, which is the expected return divided by the
+bet.  Again, pad that to two decimal places.  
+<p>
+This lets us evaluate all the Keno options in the flier.  First, the "2-bit menu":
+
+<pre>
+UNIX> <font color=darkred><b>echo "0.25 5    3 0.25   4 1   5 200" | bin/keno</b></font>
+Bet: 0.25
+Balls Picked: 5
+  Probability of catching 3 of 5: 0.0839351 -- Expected return: 0.0209838
+  Probability of catching 4 of 5: 0.0120923 -- Expected return: 0.0120923
+  Probability of catching 5 of 5: 0.000644925 -- Expected return: 0.128985
+Your return per bet: -0.09
+Normalized: -0.35
+UNIX> <font color=darkred><b>echo "0.25 6   3 .25  4 .50   5 10   6 500" | bin/keno</b></font>
+Bet: 0.25
+Balls Picked: 6
+  Probability of catching 3 of 6: 0.12982 -- Expected return: 0.0324549
+  Probability of catching 4 of 6: 0.0285379 -- Expected return: 0.014269
+  Probability of catching 5 of 6: 0.00309564 -- Expected return: 0.0309564
+  Probability of catching 6 of 6: 0.000128985 -- Expected return: 0.0644925
+Your return per bet: -0.11
+Normalized: -0.43
+UNIX> <font color=darkred><b>echo "0.25 7   4 .25  5 .75   6 75  7 3000" | bin/keno</b></font>
+Bet: 0.25
+Balls Picked: 7
+  Probability of catching 4 of 7: 0.052191 -- Expected return: 0.0130477
+  Probability of catching 5 of 7: 0.0086385 -- Expected return: 0.00647888
+  Probability of catching 6 of 7: 0.000732077 -- Expected return: 0.0549058
+  Probability of catching 7 of 7: 2.44026e-05 -- Expected return: 0.0732077
+Your return per bet: -0.10
+Normalized: -0.41
+UNIX> <font color=darkred><b>echo "0.25 8  5 1  6 20  7 300 8 10000" | bin/keno</b></font>
+Bet: 0.25
+Balls Picked: 8
+  Probability of catching 5 of 8: 0.0183026 -- Expected return: 0.0183026
+  Probability of catching 6 of 8: 0.00236671 -- Expected return: 0.0473343
+  Probability of catching 7 of 8: 0.000160455 -- Expected return: 0.0481365
+  Probability of catching 8 of 8: 4.34566e-06 -- Expected return: 0.0434566
+Your return per bet: -0.09
+Normalized: -0.37
+UNIX> <font color=darkred><b>echo "0.25 9   5 1  6 10   7 35  8 800  9 13000" | bin/keno</b></font>
+Bet: 0.25
+Balls Picked: 9
+  Probability of catching 5 of 9: 0.0326015 -- Expected return: 0.0326015
+  Probability of catching 6 of 9: 0.00571956 -- Expected return: 0.0571956
+  Probability of catching 7 of 9: 0.000591678 -- Expected return: 0.0207087
+  Probability of catching 8 of 9: 3.25925e-05 -- Expected return: 0.026074
+  Probability of catching 9 of 9: 7.24277e-07 -- Expected return: 0.0094156
+Your return per bet: -0.10
+Normalized: -0.42
+UNIX> <font color=darkred><b>echo "0.25 10  5 .25  6 2.50  7 25  8 250  9 2500  10 25000" | bin/keno</b></font>
+Bet: 0.25
+Balls Picked: 10
+  Probability of catching 5 of 10: 0.0514277 -- Expected return: 0.0128569
+  Probability of catching 6 of 10: 0.0114794 -- Expected return: 0.0286985
+  Probability of catching 7 of 10: 0.00161114 -- Expected return: 0.0402786
+  Probability of catching 8 of 10: 0.000135419 -- Expected return: 0.0338548
+  Probability of catching 9 of 10: 6.12065e-06 -- Expected return: 0.0153016
+  Probability of catching 10 of 10: 1.12212e-07 -- Expected return: 0.0028053
+Your return per bet: -0.12
+Normalized: -0.46
+UNIX> <font color=darkred><b></b></font>
+</pre>
+
+
+Clearly, the "2-bit" menu is not a sound investment strategy.  I especially love
+the part that says "Don't know what number to play?  We have Quick Pick!"  How
+about you just remove money from my bank account and then I don't have to think 
+at all!!!!!!
+<p>
+How about the other Keno games?  "You asked for it -- The Catch All 5 Spot":
+
+<pre>
+UNIX> <b>echo "1.50 5  5 1300" | keno</b>
+Bet: 1.50
+Balls Picked: 5
+  Probability of catching 5 of 5: 0.000644925 -- Expected return: 0.838402
+Your return per bet: -0.66
+Normalized: -0.44
+UNIX> <b></b>
+</pre>
+
+The "Brand New 8 spot:"
+
+<pre>
+UNIX> <b>echo ".40 8  5 2   6 20  7 200  8 20000" | keno</b>
+Bet: 0.40
+Balls Picked: 8
+  Probability of catching 5 of 8: 0.0183026 -- Expected return: 0.0366052
+  Probability of catching 6 of 8: 0.00236671 -- Expected return: 0.0473343
+  Probability of catching 7 of 8: 0.000160455 -- Expected return: 0.032091
+  Probability of catching 8 of 8: 4.34566e-06 -- Expected return: 0.0869132
+Your return per bet: -0.20
+Normalized: -0.49
+UNIX> <b></b>
+</pre>
+
+And "100 Dimes" -- note this one has a catch zero:
+
+<pre>
+UNIX> <b>echo ".10 7  0 .10  6 20  7 1200" | keno</b>
+Bet: 0.10
+Balls Picked: 7
+  Probability of catching 0 of 7: 0.121574 -- Expected return: 0.0121574
+  Probability of catching 6 of 7: 0.000732077 -- Expected return: 0.0146415
+  Probability of catching 7 of 7: 2.44026e-05 -- Expected return: 0.0292831
+Your return per bet: -0.04
+Normalized: -0.44
+UNIX> 
+</pre>
+
+Perhaps I should have ridden the gondola........
+<hr>
+<h3>This is no longer required -- I just include it for amusement</h3>
+
+You are visiting your aunt and uncle, and as you walk by their 
+computer room, you hear your eight-year-old neice Pippy swearing
+up a storm in front of her computer.  As you probe, you realize
+that she's blowing a simulated wad of money on
+<a href=http://onlinekeno.net/play-free-keno/online-keno>Free Online Keno</a>!!!
+<p>
+Using your newfound understanding of Keno and your ability to 
+program, write up a paragraph that shows Pippy how much she is losing
+on each of her fifteen potential Keno bets.  
+
+<p>
+
+<hr>
+<h3>Doing Keno in Stages</h3>
+
+<b>Keno.cpp</b> is a very small program (mine is 56 lines), but you can still
+do it in stages.  For example, I did it in three stages.  Stage 1 just prints
+out the input:
+
+<pre>
+UNIX> <font color=darkred><b>echo "0.25 5    3 0.25   4 1   5 200" | bin/keno1</b></font>
+Bet: 0.25
+Balls Picked: 5
+  Catch 3/5 - 0.25
+  Catch 4/5 - 1.00
+  Catch 5/5 - 200.00
+UNIX> <b></b>
+</pre>
+
+Stage 2 calculates the probabilities.
+
+<pre>
+UNIX> <font color=darkred><b>echo "0.25 5    3 0.25   4 1   5 200" | bin/keno2</b></font>
+Bet: 0.25
+Balls Picked: 5
+  Probability of catching 3 of 5: 0.0839351
+  Probability of catching 4 of 5: 0.0120923
+  Probability of catching 5 of 5: 0.000644925
+UNIX>
+</pre>
+
+And then stage three finishes everything up.

@@ -1,0 +1,815 @@
+<title>CS140 Lab 7 - Code Processing</title>
+<body bgcolor=ffffff>
+<h2>CS140 Lab 7 - Code Processing</h2>
+<UL>
+<LI><a href=http://web.eecs.utk.edu/~jplank>James S. Plank</a>
+<LI>Directory: <b>~jplank/cs140/Labs/Lab7</b>
+<LI> Last modification date: <i>
+Mon Oct 21 17:06:03 EDT 2019
+</i>
+</UL>
+<hr>
+
+You and your friends Rad and Banjolina decide to go into business providing web and cell phone
+support for reward programs like mycokerewards 
+(or, more precisely, like mycokerewards used to be.  The current lab is more like Pampers rewards.
+Mycokerewards got out of the game of redeeming for points, and instead went into sweepstakes.
+Such is life.)
+Users can set up accounts with you that will maintain <i>points</i>.  Users can accumulate
+points by collecting codes from various products (such as bottlecaps and 12-packs, as in 
+mycokerewards, or such as diapers and wipes in Pampers rewards), and then they can spend the
+points on various prizes.
+<p>
+Users can enter codes via a web site, or they can register one or more cell phones with their
+account, and then they can text codes to a given phone number, which will register the points.
+<p>
+Rad is handling the business and marketing end of this endeavor, and 
+Banjolina is doing all of the web programming.  Your job is to write the 
+server that maintains information about users, prizes and codes, and talks
+with Banjolina's web front-end.  Since you haven't taken CS360 yet, your server
+won't do any real networking.  Instead, it will communicate via files and standard
+input.
+<p>
+As with many of our labs, I give you a header file that defines a class, and you have to 
+implement the methods.  I have a driver program that you compile with your code,
+and that will be the final product.
+<p>
+Here's the header, in 
+<b><a href=include/code_processor.hpp>include/code_processor.hpp</a></b>.  Unlike the
+previous labs, there is no commenting here.  I have explanations below.
+
+<p><center><table border=3 cellpadding=3><td><pre>
+#include &lt;set&gt;
+#include &lt;map&gt;
+#include &lt;string&gt;
+
+class User {
+  public:
+     std::string username;
+     std::string realname;
+     int points;
+     std::set &lt;std::string&gt; phone_numbers;
+};
+
+class Prize {
+  public:
+     std::string id;
+     std::string description;
+     int points;
+     int quantity;
+};
+
+class Code_Processor {
+  public:
+    bool New_Prize(const std::string &id, const std::string &description, int points, int quantity);
+    bool New_User(const std::string &username, const std::string &realname, int starting_points);
+    bool Delete_User(const std::string &username);
+
+    bool Add_Phone(const std::string &username, const std::string &phone);
+    bool Remove_Phone(const std::string &username, const std::string &phone);
+    std::string Show_Phones(const std::string &username) const;
+
+    int Enter_Code(const std::string &username, const std::string &code);
+    int Text_Code(const std::string &phone, const std::string &code);
+    bool Mark_Code_Used(const std::string &code);
+
+    int Balance(const std::string &username) const;
+    bool Redeem_Prize(const std::string &username, const std::string &prize);
+   
+    ~Code_Processor();
+    bool Write(const std::string &filename) const;
+
+    void Double_Check_Internals() const;   /* You don't write this */
+
+  protected:
+    std::map &lt;std::string, User *&gt; Names;
+    std::map &lt;std::string, User *&gt; Phones;
+    std::set &lt;std::string&gt; Codes;
+    std::map &lt;std::string, Prize *&gt; Prizes;
+};
+</pre></td></table></center><p>
+
+
+While this looks like a mouthful, it's really not that bad.  <b>Users</b> store the 
+following data:
+<p>
+<UL>
+<LI> A <b>username</b>, which is a one-word name.
+<LI> A <b>realname</b>, which is the users's full name.  For example, my username
+might be <b>"jimplank"</b> and my real name <b>"Jim Plank"</b>.
+<LI> The total number of points that the user has.
+<LI> A set containing the phone numbers registered to the user.  Phone numbers are
+stored simply as strings.
+</UL>
+<p>
+<b>Prizes</b> store the following data:
+<p>
+<UL>
+<LI> An <b>id</b>.  This is a unique string for each prize.
+<LI> A <b>description</b>.  This is a longer description of each prize.
+<LI> The number of <b>points</b> that it takes to get one prize.
+<LI> The <b>quantity</b> of prizes.
+</UL>
+<p>
+
+A <b>Code_Processor</b> keeps track 
+of Users, Codes and Prizes.  Users are stored in the map <b>Names</b>, which is keyed
+on their usernames.  Phone numbers are stored in the map <b>Phones</b>, which is keyed
+on the phone numbers, and whose <b>second</b> field points to the user that has registered the
+cell phone.
+<p>
+There is a set <b>Codes</b>, which stores the codes that have been entered by all users.
+This set exists so that users can't enter a code more than once.  Finally, there is a
+map <b>Prizes</b>, keyed on the id of each prize.
+<p>
+You'll note that both <b>Names</b> and <b>Phones</b> point to users.  In other words, 
+each user has just one <b>User</b> instance, and that is pointed to both in <b>Names</b>
+and in <b>Phones</b>.  If the user has multiple phones, then there will be multiple
+entries in <b>Phones</b> that point to that user.
+Moreover, there are two data structures that hold phones -- <b>Phones</b>, which is keyed
+on the phone number, and the set <b>phone_numbers</b> which is part of the User's data.
+<p>
+Now, you are to write the following methods (I'm omitting the <b>const</b> declarations here,
+to keep the writeup uncluttered.  Obviously, you can see the <b>const</b> declarations in
+the header):
+<p>
+<UL>
+<LI> <b>New_Prize(string id, string description, int points, int quantity)</b>: This creates
+a new prize and puts it into <b>Prizes</b>.  You should <b>true</b> if all is ok.  You 
+should return <b>false</b>from the following errors without creating anything new:
+<p>
+<UL>
+<LI> There is already a prize with the given <b>id</b> in prizes.
+<LI> <b>Points</b> is less than or equal to zero.
+<LI> <b>Quantity</b> is less than or equal to zero.
+</UL>
+<p>
+<LI> <b>New_User(string username, string realname, int starting_points)</b>: 
+This creates a new user with the given information, and puts it into <b>Names</b>.  
+The user will start with 
+no registered phone numbers.
+You should return <b>true</b> if all is ok.  You 
+should return <b>false</b> from the following errors without creating anything new:
+<p>
+<UL>
+<LI> There is already a user with that <b>username</b>.
+<LI> <b>Starting_points</b> is less than zero.
+</UL>
+<p>
+<LI> <b>Delete_User(string username)</b>: 
+This should erase the user from <b>Names</b>, and it should erase all of the user's
+phone numbers from <b>Phones</b>.  After that, it should call <b>delete</b> on the
+user's pointer.
+You should return <b>true</b> if all is ok.  You 
+should return <b>false</b> if the <b>username</b> is not in <b>Names</b>.
+<p>
+
+<LI> <b>Add_Phone(string username, string phone)</b>: 
+This should register the given phone string with the user.  That means putting
+the phone on both the <b>Phones</b> map, and on the user's <b>phone_numbers</b> set.
+You should return <b>true</b> if all is ok.  You 
+should return <b>false</b> from the following errors without creating anything new:
+<p>
+<UL>
+<LI> There is no user with that <b>username</b>.
+<LI> The phone number is already registered, either with that user or with another.
+</UL>
+<p>
+
+<LI> <b>Remove_Phone(string username, string phone)</b>: 
+This should remove the phone from the system -- both from 
+<b>Phones</b> and from the user's <b>phone_numbers</b> set.
+You should return <b>true</b> if all is ok.  You 
+should return <b>false</b> from the following errors without performing any system modifications:
+<p>
+<UL>
+<LI> There is no user with that <b>username</b>.
+<LI> There is no phone string with that <b>phone</b>.
+<LI> The phone number is registered to a different user.
+</UL>
+<p>
+
+<LI> <b>Show_Phones(string username)</b>: 
+This should return a string containing all of that user's phone
+numbers, in lexicographic order, each separated by a newline.  There should
+be a newline at the end of the string too.  If the user doesn't exist,
+return the string <b>"BAD USER"</b>.  If the user has no phones, simply return
+an empty string.
+<p>
+
+<LI> <b>Enter_Code(string username, string code)</b>: 
+This is called when a user enters a code.  You need to first check the
+<b>Codes</b> set to see if the code has been entered before.  If it has,
+or if the user doesn't exist, return -1.  Otherwise, you need to check
+to see if the code is valid:
+A valid code's <b>djbhash()</b> must either
+be divisible by 17 or 13.  If divisible by 17, then it is worth ten
+points.  Otherwise, if it is divisible by 13, then it is worth 
+three points.  If the code is valid, then add it to <b>Codes</b>, 
+increment the user's account and return the number of points added.
+If the code is not valid, simply return zero.
+<p>
+(BTW, you can use the implementation of <b>djb_hash</b> that's in 
+<b><a href=src/random_codes.cpp>src/random_codes.cpp</a></b>.)
+<p>
+
+<LI> <b>Text_Code(string phone, string code)</b>: 
+This should work just like <b>Enter_Code()</b>, except the user's account
+is identified by the phone number.  If the phone number doesn't exist, return -1.
+Otherwise, this should work just like <b>Enter_Code()</b>.
+<p>
+
+<LI> <b>Mark_Code_Used(string code)</b>: This is called to mark a code
+as used, even though no user is entering it.  This is used to help rebuild
+the server from a saved state (see <b>Write()</b> below).  If the code
+is not valid or it is already in <b>Codes</b>, return <b>false</b>.  Otherwise, add
+it to <b>Codes</b> and return <b>true</b>.
+<p>
+
+<LI> <b>Balance(string username)</b>: This should return the user's points.
+If the user doesn't exist, return -1.
+<p>
+
+<LI> <b>Redeem_Prize(string username, string prize)</b>: This  is called when a user
+wants to redeem a prize.  The prize is identified by its <b>id</b>.  If the user or
+prize don't exist, or if the user doesn't have enough points, return false.  Otherwise,
+decrement the points from the user's account, decrement the prize's quantity by 
+one, and return true.  
+If the prize's quantity is zero, remove the prize from the system (which should
+involve a <b>delete</b> call).
+<p>
+
+<LI> <b>~Code_Processor()</b>: Since <b>new</b> is called to create users and prizes,
+you need to write a destructor that calls <b>delete</b> on all the users and prizes.
+The destructor doesn't have to clear the maps or sets -- that will be done automatically
+for you when the <b>Code_Processor</b> goes away.  If you don't understand this point,
+please ask about it in class.
+<p>
+
+<LI> I'll describe <b>Write()</b> later.
+<p>
+<LI> You don't write <b>Double_Check_Internals()</b>.  I have written it, and it is
+in <b><a href=double_checker.cpp>double_checker.cpp</a></b>, which
+you must include when you compile your program.  My <b>makefile</b>
+does this for you.  The intent of <b>Double_Check_Internals()</b> is
+to make sure that your treatment of phone numbers is consistent, and that
+you have closed any open files.
+</UL>
+<p>
+<hr>
+<h2>src/cp_tester.cpp</h2>
+
+The program 
+<b><a href=src/cp_tester.cpp>src/cp_tester.cpp</a></b>
+is a front end for 
+<b><a href=src/code_processor.cpp>src/code_processor.cpp</a></b>.  You call it with 
+filenames on the command line argument, and it reads files that have commands to execute on
+a <b>Code_Processor</b>.  If a filename is "<i>-</i>", it reads the commands from standard input.
+The commands are specified on separate lines -- blank lines are ok, and lines that begin with
+a pound sign are ignored.  Lines may not have more than 20 words on them.
+<p>
+Otherwise, the following commands are supported:
+<p>
+<LI> "<i><b>PRIZE</b> id points quantity description</i>": Calls <b>New_Prize()</b> with the 
+given arguments.  <b>Id</b> is a single word.  <b>Description</b> may be multiple words.
+<p>
+<LI> "<i><b>ADD_USER</b> username starting_points realname</i>": Calls <b>New_User()</b> with the 
+given arguments.  <b>Username</b> must be one word.  <b>Realname</b> can contain any number
+of words.
+<p>
+<LI> "<i><b>DELETE_USER</b> username</i>": Calls <b>Delete_User</b> with the given username.
+<p>
+<LI> "<i><b>ADD_PHONE</b> username phone-number</i>": Makes the appropriate <b>Add_Phone()</b> 
+call.  Both <b>username</b> and <b>phone-number</b> must be one word.
+<p>
+<LI> "<i><b>REMOVE_PHONE</b> username phone-number</i>": Makes the appropriate <b>Remove_Phone()</b> 
+call.
+<p>
+<LI> "<i><b>SHOW_PHONES</b> username</i>": Makes the appropriate <b>Show_Phones()</b>  call.
+<p>
+
+<LI> "<i><b>ENTER_CODE</b> username code</i>": Makes the appropriate <b>Enter_Code()</b>  call.
+The code should be one word.
+<p>
+
+<LI> "<i><b>TEXT_CODE</b> phone code</i>": Makes the appropriate <b>Text_Code()</b>  call.
+<p>
+
+<LI> "<i><b>MARK_USED</b> code ...</i>": You can specify up to 19 codes on a line.
+It will call <b>Mark_Code_Used()</b> on each of these codes.
+<p>
+<LI> "<i><b>BALANCE</b> username</i>": calls <b>Balance()</b> and prints the output.
+
+<p>
+<LI> "<i><b>REDEEM</b> username prize</i>": calls <b>Redeem()</b>.
+<p>
+<LI> "<i><b>DOUBLE_CHECK</b></i>": calls <b>Double_Check_Internals()</b>.
+<p>
+<LI> "<i><b>WRITE</b> filename</i>": calls <b>Write()</b> on the given filename.  Explanation below.
+<p>
+<LI> "<i><b>QUIT</b></i>": stops reading.  You can simply end input too, and that will stop reading.
+</UL>
+<hr>
+<h3>Write()</h3>
+
+The <b>Write()</b> method is very important.  Whenever you write a server like this one, you should
+make it <i>fault-tolerant</i>.  In other words, you should make it so that it can save its
+state so that you can terminate the server and start it up again later.  The <b>Write()</b>
+method should save the <b>Code_Processor</b>'s state to the given file and return <b>true</b>.
+It should return <b>false</b> if it can't open/create the file.  
+<p>
+The format of <b>Write()</b> should be as a file that <b>cp_tester</b> can use as input
+to recreate the state of the <b>Code_Processor</b>. It should only consist of 
+<b>ADD_USER</b>, <b>PRIZE</b>, <b>ADD_PHONE</b> and <b>MARK_USED</b> lines, 
+and when <b>cp_tester</b> is run with the file as input, it should recreate the state
+of the <b>Code_Processor</b>.  
+<p>
+I don't care about the order or format of the lines, as long as they create the proper 
+<b>Code_Processor</b> when they are fed to <b>cp_tester</b>.  My grading program will test
+your files by using them as input to my <b>cp_tester</b> and looking at the output of my
+<b>Write()</b> call.
+<p>
+
+<hr>
+<h3>Some examples</h3>
+
+Let's start with a very simple example:
+
+<pre>
+UNIX> <font color=darkred><b>bin/cp_tester -</b></font>
+CP_Tester> <font color=darkred><b>ADD_USER tigerwoods 0 Tiger Woods</b></font>
+ADD_USER successful
+CP_Tester> <font color=darkred><b>ADD_USER the-donald 100 Donald Trump</b></font>
+ADD_USER successful
+CP_Tester> <font color=darkred><b>PRIZE mp3 40 5000 Free MP3 download from Bapster</b></font>
+PRIZE successful
+CP_Tester> <font color=darkred><b>PRIZE cancun 10000 1 All expense-paid vacation to Cancun</b></font>
+PRIZE successful
+CP_Tester> <font color=darkred><b>WRITE cp1.txt</b></font>
+WRITE successful
+CP_Tester> <font color=darkred><b>QUIT</b></font>
+UNIX> <font color=darkred><b>cat cp1.txt</b></font>
+PRIZE     cancun     10000      1 All expense-paid vacation to Cancun
+PRIZE     mp3           40   5000 Free MP3 download from Bapster
+ADD_USER  the-donald   100 Donald Trump
+ADD_USER  tigerwoods     0 Tiger Woods
+UNIX> <font color=darkred><b></b></font>
+</pre>
+
+I've added two prizes and two users, and then written the server's state to 
+<b><a href=cp1.txt>cp1.txt</a></b>.  You'll note that the order of 
+<b><a href=cp1.txt>cp1.txt</a></b> is different from my input.  That's fine --
+if you use it as input to <b>cp_tester</b>, it will create the same server state.
+For example:
+
+<pre>
+UNIX> <font color=darkred><b>bin/cp_tester cp1.txt -</b></font>
+CP_Tester> <font color=darkred><b>BALANCE tigerwoods</b></font>
+0 Points
+CP_Tester> <font color=darkred><b>BALANCE the-donald</b></font>
+100 Points
+CP_Tester> <font color=darkred><b>WRITE cp2.txt</b></font>
+WRITE successful
+CP_Tester> <font color=darkred><b>QUIT</b></font>
+UNIX> <font color=darkred><b>cat cp2.txt</b></font>
+PRIZE     cancun     10000      1 All expense-paid vacation to Cancun
+PRIZE     mp3           40   5000 Free MP3 download from Bapster
+ADD_USER  the-donald   100 Donald Trump
+ADD_USER  tigerwoods     0 Tiger Woods
+UNIX> <font color=darkred><b></b></font>
+</pre>
+
+When I called <b>cp_tester</b>, I gave it two command line arguments: <b>cp1.txt</b>
+and <b>-</b>.  So, it first read commands from <b>cp1.txt</b>, which recreated the
+same state as when I created <b>cp1.txt</b>, and then it read from standard input.
+When I entered <b>WRITE cp2.txt</b>, it created <b>cp2.txt</b>, which is identical
+to <b>cp1.txt</b>, since they have the same state.
+<p>
+Suppose I call <b>cp_tester</b> with <b>cp1.txt</b> and <b>cp2.txt</b> on the command
+line.  I should expect four error messages, since the users and prizes already exist
+when it tries to process <b>cp2.txt</b>:
+
+<pre>
+UNIX> <font color=darkred><b>bin/cp_tester cp1.txt cp2.txt</b></font>
+Prize cancun couldn't be added
+Prize mp3 couldn't be added
+ADD_USER the-donald unsuccessful
+ADD_USER tigerwoods unsuccessful
+UNIX> <font color=darkred><b></b></font>
+</pre>
+
+This is because <b>cp_tester</b> checks the return values of the <b>New_Prize()</b>
+and <b>New_User()</b> calls.  
+<p>
+Let's add a few phone numbers and enter some codes.  If you check the hashes
+using <b>djbhash.cpp</b> from <a href=http://web.eecs.utk.edu/~jplank/plank/classes/cs140/Notes/Hashing/index.html>the hashing lecture notes</a>, you'll see that they are each divisible by 13 and
+not by 17, so they are each worth three points:
+
+<pre>
+UNIX> <font color=darkred><b>/home/jplank/cs140/Notes/Hashing/bin/djbhash | awk '{ print $1%17, $1%13 }'</b></font>
+<font color=darkred><b>Df18ly81CO1mo4</b></font>
+11 0
+<font color=darkred><b>IDWNZJ20ENkAxP</b></font>
+2 0
+<font color=darkred><b>h0yuKnVD6DvRUu</b></font>
+11 0
+UNIX> <font color=darkred><b>bin/cp_tester cp1.txt -</b></font>
+CP_Tester> <font color=darkred><b>ADD_PHONE tigerwoods 865-974-4400       </b></font>
+ADD_PHONE successful
+CP_Tester> <font color=darkred><b>ADD_PHONE tigerwoods 1-800-Big-Putt</b></font>
+ADD_PHONE successful
+CP_Tester> <font color=darkred><b>SHOW_PHONES tigerwoods</b></font>
+1-800-Big-Putt
+865-974-4400
+CP_Tester> <font color=darkred><b>ENTER_CODE tigerwoods Df18ly81CO1mo4</b></font>
+ENTER_CODE: Added 3 points to tigerwoods.
+CP_Tester> <font color=darkred><b>TEXT_CODE 865-974-4400 IDWNZJ20ENkAxP</b></font>
+TEXT_CODE: Added 3 points.
+CP_Tester> <font color=darkred><b>TEXT_CODE 1-800-Big-Putt h0yuKnVD6DvRUu</b></font>
+TEXT_CODE: Added 3 points.
+CP_Tester> <font color=darkred><b>BALANCE tigerwoods</b></font>
+9 Points
+CP_Tester> <font color=darkred><b>WRITE cp3.txt</b></font>
+WRITE successful
+CP_Tester> <font color=darkred><b>QUIT</b></font>
+UNIX> <font color=darkred><b></b></font>
+</pre>
+
+Each <b>ENTER_CODE</b> and <b>TEXT_CODE</b> call adds three points to <b>tigerwoods</b>' 
+account, giving him 9 points in all.  After the <b>WRITE</b> call, 
+<b><a href=cp3.txt>cp3.txt</a></b> looks as follows:
+
+<p><center><table border=3 cellpadding=3><td><pre>
+PRIZE     cancun     10000      1 All expense-paid vacation to Cancun
+PRIZE     mp3           40   5000 Free MP3 download from Bapster
+ADD_USER  the-donald   100 Donald Trump
+ADD_USER  tigerwoods     9 Tiger Woods
+ADD_PHONE tigerwoods 1-800-Big-Putt
+ADD_PHONE tigerwoods 865-974-4400
+MARK_USED Df18ly81CO1mo4 IDWNZJ20ENkAxP h0yuKnVD6DvRUu
+</pre></td></table></center><p>
+
+The phones have been registered to <b>tigerwoods</b>, his point total has been
+updated, and the codes have been marked as used.  Although I put multiple codes on a
+<b>MARK_USED</b> line, you don't have to.   Just remember the 20-word limit on a line.
+<p>
+And again, your output does not have to match mine -- it simply needs to create the
+same <b>Code_Processor</b>.
+<p>
+Let's take a look at an example where some prizes are redeemed:
+
+<pre>
+UNIX> <font color=darkred><b>bin/cp_tester cp3.txt -</b></font>
+CP_Tester> <font color=darkred><b>ADD_USER billgates 500000 Bill Gates</b></font>
+ADD_USER successful
+CP_Tester> <font color=darkred><b>REDEEM tigerwoods mp3</b></font>
+REDEEM:       either the user doesn't exist,
+              or the prize doesn't exist,
+              or the user can't afford the prize.
+CP_Tester> <font color=darkred><b>REDEEM the-donald mp3</b></font>
+REDEEM successful
+CP_Tester> <font color=darkred><b>REDEEM billgates cancun</b></font>
+REDEEM successful
+CP_Tester> <font color=darkred><b>WRITE cp4.txt</b></font>
+WRITE successful
+CP_Tester> <font color=darkred><b>QUIT</b></font>
+UNIX> <font color=darkred><b>cat cp4.txt</b></font>
+PRIZE     mp3           40   4999 Free MP3 download from Bapster
+ADD_USER  billgates  490000 Bill Gates
+ADD_USER  the-donald    60 Donald Trump
+ADD_USER  tigerwoods     9 Tiger Woods
+ADD_PHONE tigerwoods 1-800-Big-Putt
+ADD_PHONE tigerwoods 865-974-4400
+MARK_USED Df18ly81CO1mo4 IDWNZJ20ENkAxP h0yuKnVD6DvRUu
+UNIX> <font color=darkred><b></b></font>
+</pre>
+
+Since <b>tigerwoods</b> only has 9 points, he can't even afford an MP3 from Bapster.
+<b>the-donald</b> has no such problem, and <b>billgates</b> can easily afford
+the Cancun vacation (like he needs it).  The updated points for the users and
+the updated quantities for the prizes have been reflected in the file.
+Since the quantity of <b>cancun</b> went to zero, it has been removed from 
+the system.
+
+<hr>
+<h3>random_codes.cpp</h3>
+
+The program <b><a href=src/random_codes.cpp>src/random_codes.cpp</a></b> generates random, valid codes.
+
+<hr>
+<h3>Strategy</h3>
+
+Your strategy here should be to first create a <b>code_processor.cpp</b> that
+implements dummy methods for each method.  That way you can compile the program
+and create a <b>bin/cp_tester</b>.  It won't work (except for <b>QUIT</b>), but
+now you can start programming incrementally. 
+<p>
+The first thing you should do is implement <b>New_Prize()</b>, and then
+implement the part of the <b>Write()</b> method that creates the file and 
+stores the prizes.  Test this by only making <b>PRIZE</b> and <b>WRITE</b>
+calls in <b>cp_tester</b>.
+<p>
+Then move onto the others.  I implemented these in the following order:
+
+<UL>
+<LI> <b>New_Prize()</b> and associated <b>Write()</b>.
+<LI> <b>Add_User()</b>, <b>Balance()</b> and associated <b>Write()</b>.
+<LI> <b>Add_Phone()</b>, and associated <b>Write()</b>.
+<LI> <b>Remove_Phone()</b> and <b>Show_Phones()</b>.  With these, I made sure that
+<b>Double_Check_Internals()</b> works, since this is one of those places where it 
+may not work.
+<LI> <b>Redeem_Prize()</b>.
+<LI> <b>Delete_User()</b>.  Again, I made sure that 
+<b>Double_Check_Internals()</b> works here.
+<LI> <b>Enter_Code()</b> and associated <b>Write()</b>.
+<LI> <b>Text_Code()</b>. 
+<LI> <b>Mark_Code_Used()</b>. 
+<LI> The destructor.
+</UL>
+
+Although this is a large lab writeup, each of these methods is relatively small.
+While the grading will of course include the gradescript, the TA's will double-check
+your destructor by hand.
+
+<hr>
+<h3>The Gradescript</h3>
+
+The gradescript for this program is a little involved, so let me tell you what
+it does, so that you can navigate it more easily:
+
+<UL>
+<LI> First, it checks to see if <b>bin/cp_tester</b> exists.  If not, it's an error.
+<LI> Now, let's suppose that we're running gradescript 50.
+<LI> It runs the following:
+
+<pre>
+UNIX> <font color=darkred><b>/home/jplank/cs140/Labs/Lab7/bin/cp_tester /home/jplank/cs140/Labs/Lab7/Gradescript-Examples/050-*.txt</b></font>
+</pre>
+
+<LI> It puts standard output into the file <tt>tmp-050-correct-stdout.txt</tt>.
+<LI> It puts standard error into the file <tt>tmp-050-correct-stdout.txt</tt>.
+<LI> If any files were created by WRITE commands, they have been named <tt>f0.txt</tt>,
+<tt>f1.txt</tt>, etc, and they are moved to a new directory called <tt>correct_dir</tt>.
+<p>
+<LI> It runs the following:
+
+<pre>
+UNIX> <font color=darkred><b>bin/cp_tester /home/jplank/cs140/Labs/Lab7/Gradescript-Examples/050-*.txt</b></font>
+</pre>
+
+<LI> It puts standard output into the file <tt>tmp-050-test-stdout.txt</tt>.
+<LI> It puts standard error into the file <tt>tmp-050-test-stdout.txt</tt>.
+<LI> Now, it can't compare your files created by WRITE commands to my files, because
+     I'm not requiring your output to match mine exactly.  So here's what I do.  Suppose
+     we created the file <tt>f1.txt</tt>.  I append the line <tt>"WRITE your_dir/f1.txt"</tt> 
+     to <tt>f1.txt</tt>, and then I run:
+
+<pre>
+UNIX> <font color=darkred><b>/home/jplank/cs140/Labs/Lab7/bin/cp_tester f1.txt</font></b>
+</pre>
+<p>
+What that does is create the file <tt>your_dir/f1.txt</tt> with my program, but using your
+<tt>f1.txt</tt> as input.  Now 
+<tt>your_dir/f1.txt</tt> should match <tt>correct_dir/f1.txt</tt> exactly.
+<p>
+<LI> I also test to make sure that your <tt>f1.txt</tt> doesn't have any extraneous lines
+     in it.
+</UL>
+
+
+So, let's examine gradescript 50.  There are two files in the gradescript directory
+that start with 050:
+
+<pre>
+UNIX> <font color=darkred><b>ls /home/jplank/cs140/Labs/Lab7/Gradescript-Examples/050-*.txt</b></font>
+/home/jplank/cs140/Labs/Lab7/Gradescript-Examples/050-A.txt
+/home/jplank/cs140/Labs/Lab7/Gradescript-Examples/050-B.txt
+UNIX
+</pre>
+
+Let's look at the first -- as you can see, it adds prizes, users and phones, and it
+sets a bunch of codes as marked:
+
+<pre>
+UNIX> <font color=darkred><b>cat /home/jplank/cs140/Labs/Lab7/Gradescript-Examples/050-A.txt</b></font>
+PRIZE     cancun     10000      1 All Expense-Paid trip to Cancun
+PRIZE     dogo         570      3 Club Dogo 12-Month Subscription
+PRIZE     habitat       35    100 Donation to Habitat for Humanity
+PRIZE     silver      1100      2 Two DMC Theatres Silver Experience movie tickets
+PRIZE     spinner      750      4 Multi-Function Salad Spinner and Chopper
+ADD_USER  ACamelb30  45158 Arianna Camelback
+ADD_PHONE ACamelb30  590-448-0257
+ADD_PHONE ACamelb30  596-598-2816
+ADD_PHONE ACamelb30  702-497-7232
+ADD_USER  AChurn40   21934 Audrey Churn
+ADD_PHONE AChurn40   235-294-7081
+ADD_PHONE AChurn40   361-551-5980
+ADD_PHONE AChurn40   597-919-8261
+ADD_USER  ADuctil93    882 Anthony Ductile
+ADD_PHONE ADuctil93  375-449-4138
+ADD_PHONE ADuctil93  509-904-5217
+ADD_PHONE ADuctil93  644-036-2649
+ADD_USER  AFluenc43    682 Andrew Fluency PhD
+ADD_PHONE AFluenc43  495-712-4764
+ADD_PHONE AFluenc43  737-246-2569
+ADD_USER  AInterv57     13 Aiden Interval
+ADD_PHONE AInterv57  081-142-5426
+ADD_PHONE AInterv57  183-790-7235
+ADD_PHONE AInterv57  855-670-4758
+ADD_USER  AJugate14  38987 Austin Jugate
+ADD_PHONE AJugate14  174-351-3757
+ADD_PHONE AJugate14  610-205-1413
+ADD_PHONE AJugate14  856-562-1336
+ADD_USER  BBonifa55     93 Brianna Boniface
+ADD_PHONE BBonifa55  008-672-3102
+ADD_USER  CBarge68   24776 Chase Barge
+ADD_USER  DIneffi14  37842 Daniel Inefficient
+ADD_PHONE DIneffi14  029-131-8159
+ADD_PHONE DIneffi14  462-602-7283
+ADD_PHONE DIneffi14  569-485-8923
+ADD_USER  GMax14       235 Gabriel Max Set
+ADD_PHONE GMax14     556-830-7531
+ADD_USER  IParks92     696 Isaac Parks
+ADD_PHONE IParks92   119-480-9038
+ADD_PHONE IParks92   177-181-8465
+ADD_USER  JEcho91    11706 James Echo
+ADD_USER  NSvelte62     59 Noah Svelte
+ADD_USER  OMauve70    6464 Oliver Mauve
+ADD_PHONE OMauve70   120-797-9587
+ADD_PHONE OMauve70   364-503-8235
+ADD_PHONE OMauve70   451-559-9059
+ADD_USER  TVade56        2 Taylor Vade
+ADD_PHONE TVade56    355-887-8304
+ADD_PHONE TVade56    606-440-6857
+ADD_PHONE TVade56    914-780-5061
+MARK_USED 6ZzSTTdUaCDy6N 7fClHDlcNlxNpl F3W9dZq4NWCp3F jqivzc4eRM0Jt9 sHDNCtoOnMhctK
+UNIX> <font color=darkred><b></b></font>
+</pre>
+
+Now let's look at the second -- it performs a bunch of commands, and writes six
+files -- <tt>f1.txt</tt> through <tt>f6.txt</tt>
+
+<pre>
+UNIX> <font color=darkred><b>cat /home/jplank/cs140/Labs/Lab7/Gradescript-Examples/050-B.txt</b></font>
+REDEEM ACamelb30 cancun
+WRITE f1.txt
+ADD_PHONE AEmery68 223-558-4601
+REDEEM OMauve70 silver
+ADD_PHONE AChurn40 914-780-5061
+WRITE f2.txt
+WRITE f3.txt
+REDEEM DIneffi14 silver
+REDEEM OMauve70 dogo
+REDEEM AJugate14 spinner
+SHOW_PHONES BBonifa55
+DELETE_USER NSvelte62
+ADD_USER CBarge68 21 James Sanitate
+WRITE f4.txt
+REDEEM AChurn40 dogo
+WRITE f5.txt
+TEXT_CODE 914-780-5061 AIV9qdDuoE1Lsz
+REMOVE_PHONE ACamelb30 590-448-0257
+REDEEM AJugate14 dogo
+REMOVE_PHONE ACamelb30 702-497-7232
+WRITE f6.txt
+UNIX> <font color=darkred><b></b></font>
+</pre>
+
+Let's run my program on it.  There is some output, so let's examine it:
+
+<pre>
+UNIX> <font color=darkred><b>/home/jplank/cs140/Labs/Lab7/bin/cp_tester /home/jplank/cs140/Labs/Lab7/Gradescript-Examples/050-*.txt</b></font>
+ADD_PHONE: Either the user (AEmery68) doesn't exist,
+           or the phone number (223-558-4601) is already assigned
+ADD_PHONE: Either the user (AChurn40) doesn't exist,
+           or the phone number (914-780-5061) is already assigned
+008-672-3102
+ADD_USER CBarge68 unsuccessful
+UNIX> <font color=darkred><b></b></font>
+</pre>
+
+First, let's verify the first error statement by looking for AEmery68 and 223-558-4601 in
+the two input files.  As you can see, we try to set AEmery68's phone number, and there's
+no such user:
+
+<pre>
+UNIX> <font color=darkred><b>egrep 'AEmery68|223-558-4601' /home/jplank/cs140/Labs/Lab7/Gradescript-Examples/050-*.txt</b></font>
+/home/jplank/cs140/Labs/Lab7/Gradescript-Examples/050-B.txt:ADD_PHONE AEmery68 223-558-4601
+UNIX> <font color=darkred><b></b></font>
+</pre>
+
+Let's verify the second error statement.  Now you can see that 914-780-5061 was already assigned to
+TVade56.
+
+<pre>
+UNIX> <font color=darkred><b>egrep 'AChurn40|914-780-5061' /home/jplank/cs140/Labs/Lab7/Gradescript-Examples/050-*.txt</b></font>
+/home/jplank/cs140/Labs/Lab7/Gradescript-Examples/050-A.txt:ADD_USER  AChurn40   21934 Audrey Churn
+/home/jplank/cs140/Labs/Lab7/Gradescript-Examples/050-A.txt:ADD_PHONE AChurn40   235-294-7081
+/home/jplank/cs140/Labs/Lab7/Gradescript-Examples/050-A.txt:ADD_PHONE AChurn40   361-551-5980
+/home/jplank/cs140/Labs/Lab7/Gradescript-Examples/050-A.txt:ADD_PHONE AChurn40   597-919-8261
+/home/jplank/cs140/Labs/Lab7/Gradescript-Examples/050-A.txt:ADD_PHONE TVade56    914-780-5061
+/home/jplank/cs140/Labs/Lab7/Gradescript-Examples/050-B.txt:ADD_PHONE AChurn40 914-780-5061
+/home/jplank/cs140/Labs/Lab7/Gradescript-Examples/050-B.txt:REDEEM AChurn40 dogo
+/home/jplank/cs140/Labs/Lab7/Gradescript-Examples/050-B.txt:TEXT_CODE 914-780-5061 AIV9qdDuoE1Lsz
+UNIX> <font color=darkred><b></b></font>
+</pre>
+
+The phone number 008-672-3102 was printed out.  Let's look for it in the input, and when 
+we find that it belongs to BBonifa55, let's look for BBonifa55.  As you can see, we gave
+the command "SHOW_PHONES BBonifa55", which is what printed "008-672-3102".
+
+<pre>
+UNIX> <font color=darkred><b>grep 008-672-3102 /home/jplank/cs140/Labs/Lab7/Gradescript-Examples/050-*.txt</b></font>
+/home/jplank/cs140/Labs/Lab7/Gradescript-Examples/050-A.txt:ADD_PHONE BBonifa55  008-672-3102
+UNIX> <font color=darkred><b>grep BBonifa55 /home/jplank/cs140/Labs/Lab7/Gradescript-Examples/050-*.txt</b></font>
+/home/jplank/cs140/Labs/Lab7/Gradescript-Examples/050-A.txt:ADD_USER  BBonifa55     93 Brianna Boniface
+/home/jplank/cs140/Labs/Lab7/Gradescript-Examples/050-A.txt:ADD_PHONE BBonifa55  008-672-3102
+/home/jplank/cs140/Labs/Lab7/Gradescript-Examples/050-B.txt:SHOW_PHONES BBonifa55
+UNIX> <font color=darkred><b></b></font>
+</pre>
+
+Last, there was an error statement: "ADD_USER CBarge68 unsuccessful".  Let's grep for CBarge68,
+and we can see that that username existed and we tried to add it a second time.
+
+<pre>
+UNIX> <font color=darkred><b>grep CBarge68 /home/jplank/cs140/Labs/Lab7/Gradescript-Examples/050-*.txt</b></font>
+/home/jplank/cs140/Labs/Lab7/Gradescript-Examples/050-A.txt:ADD_USER  CBarge68   24776 Chase Barge
+/home/jplank/cs140/Labs/Lab7/Gradescript-Examples/050-B.txt:ADD_USER CBarge68 21 James Sanitate
+UNIX> <font color=darkred><b></b></font>
+</pre>
+
+Let's make the directory <tt>correct_dir</tt> and move the six files there:
+
+<pre>
+UNIX> <font color=darkred><b>mkdir correct_dir</b></font>
+UNIX> <font color=darkred><b>mv f?.txt correct_dir</b></font>
+UNIX> <font color=darkred><b>ls correct_dir</b></font>
+f1.txt	f2.txt	f3.txt	f4.txt	f5.txt	f6.txt
+UNIX> <font color=darkred><b></b></font>
+</pre>
+
+Now, let's run the <b>cp_tester</b> in <b>bin</b>:
+
+<pre>
+UNIX> <font color=darkred><b>bin/cp_tester /home/jplank/cs140/Labs/Lab7/Gradescript-Examples/050-*.txt</b></font>
+ADD_PHONE: Either the user (AEmery68) doesn't exist,
+           or the phone number (223-558-4601) is already assigned
+ADD_PHONE: Either the user (AChurn40) doesn't exist,
+           or the phone number (914-780-5061) is already assigned
+008-672-3102
+ADD_USER CBarge68 unsuccessful
+UNIX> <font color=darkred><b></b></font>
+</pre>
+
+The output is identical, so that's good.  However <tt>f1.txt</tt> through <tt>f6.txt</tt> don't
+match the ones in <tt>correct_dir</tt>, because this <b>cp_tester</b> implements <b>Write()</b>
+differently:
+
+<pre>
+UNIX> <font color=darkred><b>ls -l correct_dir/f1.txt</b></font>
+-rw-r--r--. 1 jplank jplank 2020 Oct 22 14:58 correct_dir/f1.txt
+UNIX> <font color=darkred><b>ls -l f1.txt</b></font>
+-rw-r--r--. 1 jplank jplank 2060 Oct 22 15:07 f1.txt
+UNIX> <font color=darkred><b>head correct_dir/f1.txt</b></font>
+PRIZE     dogo         570      3 Club Dogo 12-Month Subscription
+PRIZE     habitat       35    100 Donation to Habitat for Humanity
+PRIZE     silver      1100      2 Two DMC Theatres Silver Experience movie tickets
+PRIZE     spinner      750      4 Multi-Function Salad Spinner and Chopper
+ADD_USER  ACamelb30  35158 Arianna Camelback
+ADD_PHONE ACamelb30  590-448-0257
+ADD_PHONE ACamelb30  596-598-2816
+ADD_PHONE ACamelb30  702-497-7232
+ADD_USER  AChurn40   21934 Audrey Churn
+ADD_PHONE AChurn40   235-294-7081
+UNIX> <font color=darkred><b>head f1.txt</b></font>
+MARK_USED 6ZzSTTdUaCDy6N
+MARK_USED 7fClHDlcNlxNpl
+MARK_USED F3W9dZq4NWCp3F
+MARK_USED jqivzc4eRM0Jt9
+MARK_USED sHDNCtoOnMhctK
+ADD_USER  ACamelb30  35158 Arianna Camelback
+ADD_PHONE ACamelb30  590-448-0257
+ADD_PHONE ACamelb30  596-598-2816
+ADD_PHONE ACamelb30  702-497-7232
+ADD_USER  AChurn40   21934 Audrey Churn
+UNIX> <font color=darkred><b></b></font>
+</pre>
+
+So, what I do is append "WRITE your_dir/f1.txt" to the end of <tt>f1.txt</tt>, create
+the directory <tt>your_dir/f1.txt</tt> and then
+I run my <b>cp_tester</b> on it.  If the state of <tt>f1.txt</tt> is correct, regardless of
+formatting, then <tt>your_dir/f1.txt</tt> should match 
+<tt>correct_dir/f1.txt</tt> exactly (because they were both created by my program):
+
+<pre>
+UNIX> <font color=darkred><b>mkdir your_dir</b></font>
+UNIX> <font color=darkred><b>echo "WRITE your_dir/f1.txt" >> f1.txt</b></font>
+UNIX> <font color=darkred><b>/home/jplank/cs140/Labs/Lab7/bin/cp_tester f1.txt</b></font>
+UNIX> <font color=darkred><b>ls -l your_dir</b></font>
+total 4
+-rw-r--r--. 1 jplank jplank 2020 Oct 22 15:14 f1.txt
+UNIX> <font color=darkred><b>diff your_dir/f1.txt correct_dir/f1.txt</b></font>
+UNIX> <font color=darkred><b></b></font>
+</pre>
+
+I hope that helps you understand what the gradescript is doing.
